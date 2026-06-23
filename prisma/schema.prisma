@@ -12,4 +12,7 @@ model User {
   email     String   @unique
   phone     String   @unique
   password  String
+
+  otpCode    String?
+  otpExpires DateTime?
 }
