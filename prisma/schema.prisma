@@ -13,7 +13,7 @@ model User {
   phone     String   @unique
   password  String
 
-  DoB DateTime?
+  dateOfBirth DateTime?
 
   otpCode    String?
   otpExpires DateTime?
