@@ -12,11 +12,18 @@ const schema = Joi.object({
   email: Joi.string().min(5).max(255).required().email(),
   phone: Joi.string().min(9).required(),
   password: Joi.string().min(5).max(50).required(),
+  dateOfBirth: Joi.string()
+    .pattern(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[1])\/\d{4}$/)
+    // .optional()
+    .required()
+    .messages({
+      "string.pattern.base": "Date of birth must be in MM/DD/YYYY format",
+    }),
 });
 
 const registerUser = async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
+    const { email, phone, dateOfBirth, password } = req.body;
 
     const { error } = schema.validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
@@ -32,13 +39,32 @@ const registerUser = async (req, res) => {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 1 minutes from now
 
+    let parsedDate = null;
+    if (dateOfBirth) {
+      const [month, day, year] = dateOfBirth.split("/");
+      parsedDate = new Date(`${year}-${month}-${day}`);
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     await prisma.user.upsert({
       where: { email },
-      update: { phone, password: hashedPassword, otpCode, otpExpires },
-      create: { email, phone, password: hashedPassword, otpCode, otpExpires },
+      update: {
+        phone,
+        password: hashedPassword,
+        dateOfBirth: parsedDate,
+        otpCode,
+        otpExpires,
+      },
+      create: {
+        email,
+        phone,
+        password: hashedPassword,
+        dateOfBirth: parsedDate,
+        otpCode,
+        otpExpires,
+      },
     });
 
     const emailSent = await sendVerificationEmail(email, otpCode);
