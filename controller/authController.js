@@ -123,4 +123,64 @@ const verifyRegister = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, verifyRegister };
+const login = async (req, res) => {
+  try {
+    const { email, phone, password } = req.body;
+
+    // 1. Ensure password and at least one identifier (email or phone) is provided
+    if (!password || (!email && !phone)) {
+      return res.status(400).json({
+        message:
+          "Please provide your password and either an email or phone number.",
+      });
+    }
+
+    let user = null;
+
+    // 2. Find the user based on whether email or phone was submitted
+    if (email) {
+      user = await User.findUserByEmail(email);
+    } else if (phone) {
+      user = await User.findUserByPhone(phone);
+    }
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials." });
+    }
+
+    // 3. Optional: Check if the user completed registration verification
+    if (user.otpCode !== null) {
+      return res.status(403).json({
+        message: "Please verify your account before logging in.",
+      });
+    }
+
+    // 4. Compare passwords using bcrypt
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).json({ message: "Invalid credentials." });
+    }
+
+    // 5. Generate JWT token
+    const token = jwt.sign(
+      { userId: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" },
+    );
+
+    // 6. Return success response
+    return res.status(200).json({
+      message: "Login successful!",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { registerUser, verifyRegister, login };
