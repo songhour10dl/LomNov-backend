@@ -16,7 +16,7 @@ const schema = Joi.object({
 
 const registerUser = async (req, res) => {
   try {
-    const { email, phone, password } = req.body;
+    const { email, phone, password, dateOfBirth } = req.body;
 
     const { error } = schema.validate(req.body);
     if (error) return res.status(400).send(error.details[0].message);
@@ -32,13 +32,29 @@ const registerUser = async (req, res) => {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 1 minutes from now
 
+    const [month, day, year] = dateOfBirth.split("/");
+    const parsedDate = new Date(`${year}-${month}-${day}`);
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     await prisma.user.upsert({
       where: { email },
-      update: { phone, password: hashedPassword, otpCode, otpExpires },
-      create: { email, phone, password: hashedPassword, otpCode, otpExpires },
+      update: {
+        phone,
+        password: hashedPassword,
+        dateOfBirth: parsedDate,
+        otpCode,
+        otpExpires,
+      },
+      create: {
+        email,
+        phone,
+        password: hashedPassword,
+        dateOfBirth: parsedDate,
+        otpCode,
+        otpExpires,
+      },
     });
 
     const emailSent = await sendVerificationEmail(email, otpCode);
