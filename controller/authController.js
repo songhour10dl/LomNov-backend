@@ -10,15 +10,14 @@ const Joi = require("joi");
 
 const schema = Joi.object({
   email: Joi.string().min(5).max(255).required().email(),
+
   phone: Joi.string().min(9).required(),
+
   password: Joi.string().min(5).max(50).required(),
-  dateOfBirth: Joi.string()
-    .pattern(/^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[1])\/\d{4}$/)
-    // .optional()
-    .required()
-    .messages({
-      "string.pattern.base": "Date of birth must be in MM/DD/YYYY format",
-    }),
+
+  dateOfBirth: Joi.date().iso().required(),
+
+  role: Joi.string().valid("RENTER", "LANDLORD").optional(),
 });
 
 const registerUser = async (req, res) => {
@@ -31,7 +30,6 @@ const registerUser = async (req, res) => {
     const existingEmail = await User.findUserByEmail(email);
     if (existingEmail)
       return res.status(400).send("Email is already registered.");
-
     const existingPhone = await User.findUserByPhone(phone);
     if (existingPhone)
       return res.status(400).send("Phone number is already registered.");
@@ -39,11 +37,13 @@ const registerUser = async (req, res) => {
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 1 minutes from now
 
-    let parsedDate = null;
-    if (dateOfBirth) {
-      const [month, day, year] = dateOfBirth.split("/");
-      parsedDate = new Date(`${year}-${month}-${day}`);
-    }
+    // let parsedDate = null;
+    // if (dateOfBirth) {
+    //   const [month, day, year] = dateOfBirth.split("/");
+    //   parsedDate = new Date(`${year}-${month}-${day}`);
+    // }
+
+    const parsedDate = new Date(dateOfBirth);
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
@@ -54,6 +54,7 @@ const registerUser = async (req, res) => {
         phone,
         password: hashedPassword,
         dateOfBirth: parsedDate,
+        // dateOfBirth: new Date(),
         otpCode,
         otpExpires,
       },
@@ -62,6 +63,7 @@ const registerUser = async (req, res) => {
         phone,
         password: hashedPassword,
         dateOfBirth: parsedDate,
+        // dateOfBirth: new Date(),
         otpCode,
         otpExpires,
       },
@@ -127,6 +129,9 @@ const login = async (req, res) => {
   try {
     const { email, phone, password } = req.body;
 
+    const normalizedEmail = email ? email.toLowerCase().trim() : undefined;
+    const normalizedPhone = phone ? phone.trim() : undefined;
+
     // 1. Ensure password and at least one identifier (email or phone) is provided
     if (!password || (!email && !phone)) {
       return res.status(400).json({
@@ -138,10 +143,10 @@ const login = async (req, res) => {
     let user = null;
 
     // 2. Find the user based on whether email or phone was submitted
-    if (email) {
-      user = await User.findUserByEmail(email);
-    } else if (phone) {
-      user = await User.findUserByPhone(phone);
+    if (normalizedEmail) {
+      user = await User.findUserByEmail(normalizedEmail);
+    } else if (normalizedPhone) {
+      user = await User.findUserByPhone(normalizedPhone);
     }
 
     if (!user) {

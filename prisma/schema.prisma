@@ -6,7 +6,11 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
+enum Role {
+  RENTER
+  LANDLORD
+  ADMIN
+}
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -14,6 +18,7 @@ model User {
   password  String
 
   dateOfBirth DateTime?
+  role        Role @default(RENTER)
 
   otpCode    String?
   otpExpires DateTime?
