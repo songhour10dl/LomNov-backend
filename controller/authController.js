@@ -84,19 +84,19 @@ const registerUser = async (req, res) => {
 const verifyRegister = async (req, res) => {
   const { email, code } = req.body;
   if (!email || !code)
-    return res.status(400).send("Email and verification code are required.");
+    return res.status(400).json("Email and verification code are required.");
 
   try {
     // Find the pending user profile
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.otpCode)
-      return res.status(404).send("Registration session not found.");
+      return res.status(404).json("Registration session not found.");
 
     // Validate the code and check expiration
     if (user.otpCode !== code)
-      return res.status(400).send("Invalid verification code.");
+      return res.status(400).json("Invalid verification code.");
     if (new Date() > user.otpExpires)
-      return res.status(400).send("Verification code has expired.");
+      return res.status(400).json("Verification code has expired.");
 
     // Success! Clear out the OTP fields so they can't be reused
     const activeUser = await prisma.user.update({
