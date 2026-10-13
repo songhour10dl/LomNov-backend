@@ -24,6 +24,8 @@ const createUser = async (userData) => {
       email: userData.email,
       phone: userData.phone,
       password: userData.password, // Note: We will hash this in the Service layer later!
+      dateOfBirth: userData.dateOfBirth,
+      role: userData.role,
     },
   });
 };
