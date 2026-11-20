@@ -1,4 +1,3 @@
-// controllers/authController.js
 const prisma = require("../models/prisma");
 const { sendVerificationEmail } = require("../services/emailService");
 const jwt = require("jsonwebtoken");
@@ -22,26 +21,26 @@ const schema = Joi.object({
 
 const registerUser = async (req, res) => {
   try {
-    const { email, phone, dateOfBirth, password } = req.body;
-
     const { error } = schema.validate(req.body);
-    if (error) return res.status(400).send(error.details[0].message);
+    if (error)
+      return res.status(400).json({ message: error.details[0].message });
+
+    // ✅ Normalize email to prevent case/whitespace mismatches
+    const email = req.body.email.toLowerCase().trim();
+    const { phone, dateOfBirth, password } = req.body;
 
     const existingEmail = await User.findUserByEmail(email);
     if (existingEmail)
-      return res.status(400).send("Email is already registered.");
+      return res.status(400).json({ message: "Email is already registered." });
+
     const existingPhone = await User.findUserByPhone(phone);
     if (existingPhone)
-      return res.status(400).send("Phone number is already registered.");
+      return res
+        .status(400)
+        .json({ message: "Phone number is already registered." });
 
     const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 5 * 60 * 1000); // 1 minutes from now
-
-    // let parsedDate = null;
-    // if (dateOfBirth) {
-    //   const [month, day, year] = dateOfBirth.split("/");
-    //   parsedDate = new Date(`${year}-${month}-${day}`);
-    // }
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
 
     const parsedDate = new Date(dateOfBirth);
 
@@ -53,8 +52,7 @@ const registerUser = async (req, res) => {
       update: {
         phone,
         password: hashedPassword,
-        dateOfBirth: parsedDate,
-        // dateOfBirth: new Date(),
+        dateOfBirth: parsedDate, // ✅ Fixed duplicate property overwrite
         otpCode,
         otpExpires,
       },
@@ -62,8 +60,7 @@ const registerUser = async (req, res) => {
         email,
         phone,
         password: hashedPassword,
-        dateOfBirth: parsedDate,
-        // dateOfBirth: new Date(),
+        dateOfBirth: parsedDate, // ✅ Fixed duplicate property overwrite
         otpCode,
         otpExpires,
       },
@@ -71,7 +68,9 @@ const registerUser = async (req, res) => {
 
     const emailSent = await sendVerificationEmail(email, otpCode);
     if (!emailSent)
-      return res.status(500).send("Failed to send verification email.");
+      return res
+        .status(500)
+        .json({ message: "Failed to send verification email." });
 
     return res.status(200).json({
       message:
@@ -81,12 +80,15 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: error.message });
   }
 };
-const verifyRegister = async (req, res) => {
-  const { email, code } = req.body;
-  if (!email || !code)
-    return res.status(400).json("Email and verification code are required.");
 
+const verifyRegister = async (req, res) => {
   try {
+    const email = req.body.email ? req.body.email.toLowerCase().trim() : "";
+    const code = req.body.code;
+
+    if (!email || !code)
+      return res.status(400).json("Email and verification code are required.");
+
     // Find the pending user profile
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.otpCode)
@@ -96,7 +98,7 @@ const verifyRegister = async (req, res) => {
     if (user.otpCode !== code)
       return res.status(400).json("Invalid verification code.");
     if (new Date() > user.otpExpires)
-      return res.status(400).json("Verification code has expired.");
+      return res.status().json("Verification code has expired.");
 
     // Success! Clear out the OTP fields so they can't be reused
     const activeUser = await prisma.user.update({

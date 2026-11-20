@@ -18,7 +18,7 @@ model User {
   password  String
 
   dateOfBirth DateTime?
-  role        Role @default(RENTER)
+  role        Role @default(RENTER) //fallback to renter if backend fail 
 
   otpCode    String?
   otpExpires DateTime?
