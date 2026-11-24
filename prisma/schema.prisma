@@ -23,3 +23,15 @@ model User {
   otpCode    String?
   otpExpires DateTime?
 }
+model Lessor {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  phone     String?  @unique
+  password  String
+
+  dateOfBirth DateTime?
+  role        Role @default(LANDLORD) //fallback to renter if backend fail 
+
+  otpCode    String?
+  otpExpires DateTime?
+}
